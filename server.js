@@ -4,17 +4,22 @@ const bcrypt = require('bcrypt-nodejs');
 const fetch = require('node-fetch'); // Required to make API requests
 const knex=require('knex');
 const cors = require('cors');
+require('dotenv').config(); // Ensure environment variables are loaded
 
 const db = knex({
   client: 'pg',
-  connection: {
-    host: '127.0.0.1',
+  connection: process.env.DATABASE_URL || {
+    host: 'localhost',
     port: 5432,
-    user: 'shiva',
-    password: 'test',
+    user: 'postgres', // Use your actual PostgreSQL username
+    password: 'test', // Use your actual PostgreSQL password
     database: 'smart-brain-db',
   },
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false, 
 });
+
+module.exports = db;
+
 
 
 // To avoid CORS
@@ -23,13 +28,14 @@ const db = knex({
 
 
 const app = express();
-app.use(express.json()); 
 
 app.use(cors({
-    origin: 'https://smart-brain-fe.vercel.app',  // Allow frontend URL
-    methods: 'GET,POST,PUT,DELETE',
-    credentials: true
+    origin: 'https://smart-brain-fe.vercel.app', // Allow only your frontend
+    methods: 'GET, POST, PUT, DELETE',
+    allowedHeaders: 'Content-Type, Authorization'
 }));
+
+app.use(express.json()); // To parse JSON request body
 const database = {
     users: [
         {
