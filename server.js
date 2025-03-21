@@ -1,9 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
-const cors = require('cors');
 const fetch = require('node-fetch'); // Required to make API requests
 const knex=require('knex');
+const cors = require('cors');
 
 const db = knex({
   client: 'pg',
@@ -17,10 +17,18 @@ const db = knex({
 });
 
 
+// To avoid CORS
+
+
+
+
 const app = express();
 app.use(bodyParser.json());
-app.use(cors());
-
+app.use(cors({
+    origin: 'https://smart-brain-fe.vercel.app/',  // Replace with your actual frontend URL
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true
+}));
 const database = {
     users: [
         {
@@ -193,6 +201,8 @@ app.put('/image', (req, res) => {
 
 // Start the server"C:\Program Files\Sublime Text\sublime_text.exe" .
 
-app.listen(3000, () => {
-    console.log('App is running on port 3000');
+const PORT = process.env.PORT || 3000;  // Default to 3000 if not set
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
+
