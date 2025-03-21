@@ -23,6 +23,8 @@ const db = knex({
 
 
 const app = express();
+app.use(express.json()); 
+
 app.use(cors({
     origin: 'https://smart-brain-fe.vercel.app',  // Allow frontend URL
     methods: 'GET,POST,PUT,DELETE',
@@ -125,6 +127,7 @@ app.post('/signin', (req, res) => {
 
 // POST /register - Register new user
 app.post('/register', (req, res) => {
+    console.log("Received Request Body:", req.body);
     const { email, name, password } = req.body;
 
     if (!email || !name || !password) {
