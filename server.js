@@ -17,13 +17,15 @@ const db = knex({
 });
 
 // To avoid CORS
+const cors = require('cors');
 const app = express();
-app.use(bodyParser.json());
+
 app.use(cors({
-    origin: 'https://smart-brain-fe.vercel.app',  // Replace with your actual frontend URL
-    methods: 'GET,POST,PUT,DELETE',
+    origin: 'https://smart-brain-fe.vercel.app', // Your frontend URL
+    methods: 'GET, POST, PUT, DELETE',
     credentials: true
 }));
+
 
 // Clarifai API Credentials
 const PAT = "5d0cb5b848b945b385f938bca351b4c5";
