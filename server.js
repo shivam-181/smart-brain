@@ -34,6 +34,13 @@ const MODEL_ID = "face-detection";
 
 // Proxy route to forward Clarifai API requests
 app.post('/clarifai', async (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
     const { imageUrl } = req.body;
 
     const raw = JSON.stringify({
@@ -72,11 +79,25 @@ app.post('/clarifai', async (req, res) => {
 });
 
 app.get("/", (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
   res.json({ status: "Backend is running!" }); // This will return JSON instead of an error page
 });
 
 // POST /signin - User login
 app.post('/signin', (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
     db.select('email','hash').from('login')
     .where('email','=',req.body.email)
     .then(data => {
@@ -97,6 +118,13 @@ app.post('/signin', (req, res) => {
 
 // POST /register - Register new user
 app.post('/register', (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
     const { email, name, password } = req.body;
 
     if (!email || !name || !password) {
@@ -134,6 +162,13 @@ app.post('/register', (req, res) => {
 
 // GET /profile/:id - Get user profile
 app.get('/profile/:id', (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
     const { id } = req.params;
     db.select('*').from('users').where({id})
     .then(user => {
@@ -148,6 +183,13 @@ app.get('/profile/:id', (req, res) => {
 
 // PUT /image - Increment entry count
 app.put('/image', (req, res) => {
+    app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
     const { id } = req.body;
     db('users').where('id', '=', id)
     .increment('entries', 1)
