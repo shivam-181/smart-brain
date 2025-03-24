@@ -17,7 +17,6 @@ const db = knex({
 });
 
 // To avoid CORS
-const cors = require('cors');
 const app = express();
 
 app.use(cors({
