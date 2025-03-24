@@ -2,60 +2,28 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
 const fetch = require('node-fetch'); // Required to make API requests
-const knex=require('knex');
+const knex = require('knex');
 const cors = require('cors');
-require('dotenv').config(); // Ensure environment variables are loaded
+const dotenv = require('dotenv');
 
+// Load environment variables
+dotenv.config();
+
+// Initialize database connection using Render's DATABASE_URL environment variable
 const db = knex({
   client: 'pg',
-  connection: process.env.DATABASE_URL || {
-    host: 'localhost',
-    port: 5432,
-    user: 'postgres', // Use your actual PostgreSQL username
-    password: 'test', // Use your actual PostgreSQL password
-    database: 'smart-brain-db',
-  },
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false, 
+  connection: process.env.DATABASE_URL,  // Use the Render provided DATABASE_URL
+  ssl: { rejectUnauthorized: false },  // Required for SSL connection on Render
 });
 
-module.exports = db;
-
-
-
 // To avoid CORS
-
-
-
-
 const app = express();
-
+app.use(bodyParser.json());
 app.use(cors({
-    origin: 'https://smart-brain-fe.vercel.app', // Allow only your frontend
-    methods: 'GET, POST, PUT, DELETE',
-    allowedHeaders: 'Content-Type, Authorization'
+    origin: 'https://smart-brain-fe.vercel.app',  // Replace with your actual frontend URL
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true
 }));
-
-app.use(express.json()); // To parse JSON request body
-const database = {
-    users: [
-        {
-            id: '123',
-            name: 'Virat',
-            email: 'virat@gmail.com',
-            password: '$2a$10$2miXQ.nnzTASWTVnOnUeB.ZmCd/Texm.O5/QN9/JLOc.GKhUsgWra', // Hashed "cricket"
-            entries: 0,
-            joined: new Date()
-        },
-        {
-            id: '124',
-            name: 'Rohit',
-            email: 'rohit@gmail.com',
-            password: '$2a$10$PuS0dp4UP7e3sCBNtOvLn.FasQZEcjF2TRXZUX.hUAms4zmmuHABa', // Hashed "bhul gya"
-            entries: 0,
-            joined: new Date()
-        }
-    ]
-};
 
 // Clarifai API Credentials
 const PAT = "5d0cb5b848b945b385f938bca351b4c5";
@@ -103,44 +71,38 @@ app.post('/clarifai', async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.json({ status: "Backend is running!" }); // ✅ This will return JSON instead of an error page
+  res.json({ status: "Backend is running!" }); // This will return JSON instead of an error page
 });
-
 
 // POST /signin - User login
 app.post('/signin', (req, res) => {
     db.select('email','hash').from('login')
     .where('email','=',req.body.email)
-    .then(data=>
-    {
-        const isValid=bcrypt.compareSync(req.body.password,data[0].hash);
-        if(isValid)
-        {
-             return  db.select('*').from('users')
-            .where('email','=',req.body.email)
-            .then(user=>{
-                res.json(user[0])
-            })
-            .catch(err=> res.status(400).json('unable to get user'))
+    .then(data => {
+        const isValid = bcrypt.compareSync(req.body.password, data[0].hash);
+        if (isValid) {
+            return db.select('*').from('users')
+                .where('email', '=', req.body.email)
+                .then(user => {
+                    res.json(user[0]);
+                })
+                .catch(err => res.status(400).json('Unable to get user'));
+        } else {
+            res.status(400).json('Wrong Credentials');
         }
-        else{
-           res.status(400).json('wrong Credentials') 
-        }
-        
     })
-    .catch(err=>res.status(400).json('Wrong Credentials'))
+    .catch(err => res.status(400).json('Wrong Credentials'));
 });
 
 // POST /register - Register new user
 app.post('/register', (req, res) => {
-    console.log("Received Request Body:", req.body);
     const { email, name, password } = req.body;
 
     if (!email || !name || !password) {
         return res.status(400).json("All fields are required");
     }
 
-    const hash = bcrypt.hashSync(password);  // ✅ Include salt rounds
+    const hash = bcrypt.hashSync(password);  // Include salt rounds
 
     db.transaction(trx => {
         trx.insert({
@@ -153,64 +115,50 @@ app.post('/register', (req, res) => {
             return trx('users')
                 .returning('*')
                 .insert({
-                    email: loginEmail[0].email,  // ✅ Fix: No `.email`, just `loginEmail[0]`
+                    email: loginEmail[0].email,
                     name: name,
                     joined: new Date()
                 });
         })
         .then(user => {
             res.json(user[0]);
-            return trx.commit();  // ✅ Ensure transaction commits
+            return trx.commit();  // Ensure transaction commits
         })
         .catch(err => {
-            trx.rollback();  // ✅ Ensure rollback on failure
+            trx.rollback();  // Ensure rollback on failure
             res.status(400).json("Unable to register");
         });
     });
 });
 
-
-
-
 // GET /profile/:id - Get user profile
 app.get('/profile/:id', (req, res) => {
     const { id } = req.params;
     db.select('*').from('users').where({id})
-    .then(user=>
-    {
-        if(user.length)
-        {
+    .then(user => {
+        if (user.length) {
             res.json(user[0]);
+        } else {
+            res.status(400).json('Not found');
         }
-        else{
-            res.status(400).json('Not found')
-        }
-
-        
     })
-    .catch(err=> res.status(400).json('error getting user'))
-
-    // if (!found) {
-    //     return res.status(404).json('User not found');
-    // }
+    .catch(err => res.status(400).json('Error getting user'));
 });
 
 // PUT /image - Increment entry count
 app.put('/image', (req, res) => {
     const { id } = req.body;
-    db('users').where('id','=',id)
-    .increment('entries',1)
+    db('users').where('id', '=', id)
+    .increment('entries', 1)
     .returning('entries')
-    .then(entries=>{
+    .then(entries => {
         res.json(entries[0].entries);
     })
-    .catch(err=> res.status(400).json('unable to get'))
+    .catch(err => res.status(400).json('Unable to get entries'));
 });
 
-// Start the server"C:\Program Files\Sublime Text\sublime_text.exe" .
-
+// Start the server
 const PORT = process.env.PORT || 3000;  // Default to 3000 if not set
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
