@@ -18,7 +18,7 @@ const db = knex({
 
 // To avoid CORS
 const app = express();
-
+app.use(bodyParser.json());
 app.use(cors({
     origin: 'https://smart-brain-fe.vercel.app', // Your frontend URL
     methods: 'GET, POST, PUT, DELETE',
