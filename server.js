@@ -2,29 +2,53 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
 const fetch = require('node-fetch'); // Required to make API requests
-const knex = require('knex');
+const knex=require('knex');
 const cors = require('cors');
-const dotenv = require('dotenv');
 
-// Load environment variables
-dotenv.config();
-
-// Initialize database connection using Render's DATABASE_URL environment variable
 const db = knex({
   client: 'pg',
-  connection: process.env.DATABASE_URL,  // Use the Render provided DATABASE_URL
-  ssl: { rejectUnauthorized: false },  // Required for SSL connection on Render
+  connection: {
+    host: '127.0.0.1',
+    port: 5432,
+    user: 'shiva',
+    password: 'test',
+    database: 'smart-brain-db',
+  },
 });
 
+
 // To avoid CORS
+
+
+
+
 const app = express();
 app.use(bodyParser.json());
 app.use(cors({
-    origin: 'https://smart-brain-fe.vercel.app', // Your frontend URL
-    methods: 'GET, POST, PUT, DELETE',
+    origin: 'https://smart-brain-fe.vercel.app',  // Replace with your actual frontend URL
+    methods: 'GET,POST,PUT,DELETE',
     credentials: true
 }));
-
+const database = {
+    users: [
+        {
+            id: '123',
+            name: 'Virat',
+            email: 'virat@gmail.com',
+            password: '$2a$10$2miXQ.nnzTASWTVnOnUeB.ZmCd/Texm.O5/QN9/JLOc.GKhUsgWra', // Hashed "cricket"
+            entries: 0,
+            joined: new Date()
+        },
+        {
+            id: '124',
+            name: 'Rohit',
+            email: 'rohit@gmail.com',
+            password: '$2a$10$PuS0dp4UP7e3sCBNtOvLn.FasQZEcjF2TRXZUX.hUAms4zmmuHABa', // Hashed "bhul gya"
+            entries: 0,
+            joined: new Date()
+        }
+    ]
+};
 
 // Clarifai API Credentials
 const PAT = "5d0cb5b848b945b385f938bca351b4c5";
@@ -34,13 +58,6 @@ const MODEL_ID = "face-detection";
 
 // Proxy route to forward Clarifai API requests
 app.post('/clarifai', async (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-
     const { imageUrl } = req.body;
 
     const raw = JSON.stringify({
@@ -79,59 +96,43 @@ app.post('/clarifai', async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
+  res.json({ status: "Backend is running!" }); //  This will return JSON instead of an error page
 });
 
-  res.json({ status: "Backend is running!" }); // This will return JSON instead of an error page
-});
 
 // POST /signin - User login
 app.post('/signin', (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-
     db.select('email','hash').from('login')
     .where('email','=',req.body.email)
-    .then(data => {
-        const isValid = bcrypt.compareSync(req.body.password, data[0].hash);
-        if (isValid) {
-            return db.select('*').from('users')
-                .where('email', '=', req.body.email)
-                .then(user => {
-                    res.json(user[0]);
-                })
-                .catch(err => res.status(400).json('Unable to get user'));
-        } else {
-            res.status(400).json('Wrong Credentials');
+    .then(data=>
+    {
+        const isValid=bcrypt.compareSync(req.body.password,data[0].hash);
+        if(isValid)
+        {
+             return  db.select('*').from('users')
+            .where('email','=',req.body.email)
+            .then(user=>{
+                res.json(user[0])
+            })
+            .catch(err=> res.status(400).json('unable to get user'))
         }
+        else{
+           res.status(400).json('wrong Credentials') 
+        }
+        
     })
-    .catch(err => res.status(400).json('Wrong Credentials'));
+    .catch(err=>res.status(400).json('Wrong Credentials'))
 });
 
 // POST /register - Register new user
 app.post('/register', (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-
     const { email, name, password } = req.body;
 
     if (!email || !name || !password) {
         return res.status(400).json("All fields are required");
     }
 
-    const hash = bcrypt.hashSync(password);  // Include salt rounds
+    const hash = bcrypt.hashSync(password);  // ✅ Include salt rounds
 
     db.transaction(trx => {
         trx.insert({
@@ -144,64 +145,64 @@ app.post('/register', (req, res) => {
             return trx('users')
                 .returning('*')
                 .insert({
-                    email: loginEmail[0].email,
+                    email: loginEmail[0].email,  // ✅ Fix: No `.email`, just `loginEmail[0]`
                     name: name,
                     joined: new Date()
                 });
         })
         .then(user => {
             res.json(user[0]);
-            return trx.commit();  // Ensure transaction commits
+            return trx.commit();  // ✅ Ensure transaction commits
         })
         .catch(err => {
-            trx.rollback();  // Ensure rollback on failure
+            trx.rollback();  // ✅ Ensure rollback on failure
             res.status(400).json("Unable to register");
         });
     });
 });
 
+
+
+
 // GET /profile/:id - Get user profile
 app.get('/profile/:id', (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-
     const { id } = req.params;
     db.select('*').from('users').where({id})
-    .then(user => {
-        if (user.length) {
+    .then(user=>
+    {
+        if(user.length)
+        {
             res.json(user[0]);
-        } else {
-            res.status(400).json('Not found');
         }
+        else{
+            res.status(400).json('Not found')
+        }
+
+        
     })
-    .catch(err => res.status(400).json('Error getting user'));
+    .catch(err=> res.status(400).json('error getting user'))
+
+    // if (!found) {
+    //     return res.status(404).json('User not found');
+    // }
 });
 
 // PUT /image - Increment entry count
 app.put('/image', (req, res) => {
-    app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://smart-brain-fe.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
-
     const { id } = req.body;
-    db('users').where('id', '=', id)
-    .increment('entries', 1)
+    db('users').where('id','=',id)
+    .increment('entries',1)
     .returning('entries')
-    .then(entries => {
+    .then(entries=>{
         res.json(entries[0].entries);
     })
-    .catch(err => res.status(400).json('Unable to get entries'));
+    .catch(err=> res.status(400).json('unable to get'))
 });
 
-// Start the server
+// Start the server"C:\Program Files\Sublime Text\sublime_text.exe" .
+
 const PORT = process.env.PORT || 3000;  // Default to 3000 if not set
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
